@@ -752,12 +752,12 @@ impl<'a> PartialEq for InlineTable<'a> {
 
 impl<'a> Display for InlineTable<'a> {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    try!(write!(f, "{{{}", self.ws.ws1));
+    write!(f, "{{{}", self.ws.ws1)?;
     for i in 0..self.keyvals.len() - 1 {
-      try!(write!(f, "{}", self.keyvals[i]));
+      write!(f, "{}", self.keyvals[i])?;
     }
     if self.keyvals.len() > 0 {
-      try!(write!(f, "{}", self.keyvals[self.keyvals.len() - 1]));
+      write!(f, "{}", self.keyvals[self.keyvals.len() - 1])?;
     }
     write!(f, "{}}}", self.ws.ws2)
   }

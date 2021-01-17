@@ -279,12 +279,12 @@ impl<'a> Display for Value<'a> {
       &Value::Boolean(ref b) => write!(f, "{}", b),
       &Value::DateTime(ref v) => write!(f, "{}", v),
       &Value::Array(ref arr) => {
-        try!(write!(f, "["));
+        write!(f, "[")?;
         for i in 0..arr.len() - 1 {
-          try!(write!(f, "{}, ", arr[i]));
+          write!(f, "{}, ", arr[i])?;
         }
         if arr.len() > 0 {
-          try!(write!(f, "{}", arr[arr.len()-1]));
+          write!(f, "{}", arr[arr.len()-1])?;
         }
         write!(f, "]")
       },
@@ -297,12 +297,12 @@ impl<'a> Display for Value<'a> {
         }
       },
       &Value::InlineTable(ref it) => {
-        try!(write!(f, "{{"));
+        write!(f, "{{")?;
         for i in 0..it.len() - 1 {
-          try!(write!(f, "{} = {}, ", it[i].0, it[i].1));
+          write!(f, "{} = {}, ", it[i].0, it[i].1)?;
         }
         if it.len() > 0 {
-          try!(write!(f, "{} = {}", it[it.len()-1].0, it[it.len()-1].1));
+          write!(f, "{} = {}", it[it.len()-1].0, it[it.len()-1].1)?;
         }
         write!(f, "}}")
       }

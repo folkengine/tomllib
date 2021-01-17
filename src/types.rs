@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::Hasher;
 use std::rc::Rc;
 use std::cell::{Cell, RefCell};
 use std::fmt;
@@ -1022,7 +1021,7 @@ impl Error for TOMLError {
   }
 
   /// Returns an `Error` that caused the current `Error`. Always returns `None`.
-  fn cause(&self) -> Option<&Error> { None }
+  fn cause(&self) -> Option<&dyn Error> { None }
 }
 
 impl Display for TOMLError {

@@ -3,10 +3,9 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::borrow::Cow;
-use internals::ast::structs::{KeyVal, WSSep, TOMLValue, ErrorCode, HashValue, TableType, Table, get_last_keys};
-use types::{Date, Time, DateTime, TimeOffset, TimeOffsetAmount, ParseError, StrType, Children, Value};
-use internals::parser::Parser;
-use nom;
+use crate::internals::ast::structs::{KeyVal, WSSep, TOMLValue, ErrorCode, HashValue, TableType, Table, get_last_keys};
+use crate::types::{Date, Time, DateTime, TimeOffset, TimeOffsetAmount, ParseError, StrType, Children, Value};
+use crate::internals::parser::Parser;
 use nom::{IResult, InputLength};
 
 pub enum Key<'a> {
@@ -16,7 +15,7 @@ pub enum Key<'a> {
 
 impl<'a> Key<'a> {
   pub fn inc(&mut self) {
-    if let &mut Key::Index(ref mut i) = self {
+    if let Key::Index(ref mut i) = *self {
       i.set(i.get() + 1);
     }
   }
@@ -25,9 +24,9 @@ impl<'a> Key<'a> {
 #[inline(always)]
 fn is_keychar(chr: char) -> bool {
   let uchr = chr as u32;
-  uchr >= 0x41 && uchr <= 0x5A || // A-Z
-  uchr >= 0x61 && uchr <= 0x7A || // a-z
-  uchr >= 0x30 && uchr <= 0x39 || // 0-9
+  (0x41..=0x5A).contains(&uchr) || // A-Z
+  (0x61..=0x7A).contains(&uchr) || // a-z
+  (0x30..=0x39).contains(&uchr) || // 0-9
   uchr == 0x2D || uchr == 0x5f    // "-", "_"
 }
 
@@ -36,9 +35,9 @@ named!(all_lines<&str, Vec<&str> >, many0!(full_line));
 
 pub fn count_lines(s: &str) -> usize {
   let r = all_lines(s);
-  match &r {
-    &IResult::Done(_, ref o) => o.len() as usize,
-    _            => 0 as usize,
+  match r {
+    IResult::Done(_, ref o) => o.len() as usize,
+    _            => 0_usize,
   }
 }
 
@@ -50,8 +49,8 @@ impl<'a> Parser<'a> {
     let tables_len = tables_index.borrow().len();
     let mut prev_end = 0;
     for i in 0..tables_len {
-      if let &TableType::Array(ref t) = &*tables.borrow()[i] {
-        if key_parent.len() > 0 {
+      if let TableType::Array(ref t) = *tables.borrow()[i] {
+        if !key_parent.is_empty() {
           key_parent.push('.');
         }
         let keys = get_last_keys(last_table, t);
@@ -86,8 +85,8 @@ impl<'a> Parser<'a> {
     let mut valid = true;
     let mut parent_key = "$Root$".to_string();
     for i in 0..tables_len {
-      match  &*tables.borrow()[i] {
-        &TableType::Array(ref t) => {
+      match  *tables.borrow()[i] {
+        TableType::Array(ref t) => {
           debug!("Array Table: {}", t);
           let keys = get_last_keys(last_table, t);
           let len = keys.len();
@@ -142,7 +141,7 @@ impl<'a> Parser<'a> {
                 },
               }
             }
-            if let Some(_) = hash_value.value {
+            if hash_value.value.is_some() {
               debug!("Key \"{}\" has a value.", full_key);
               valid = false;
             } else if let Children::Keys(_) = hash_value.subkeys {
@@ -169,7 +168,7 @@ impl<'a> Parser<'a> {
             full_key.push_str(&format!("[{}]", index));
           }
         },
-        &TableType::Standard(ref t) => {
+        TableType::Standard(ref t) => {
           // Standard tables can't be nested so this has to be the last table in the vector
           let keys = get_last_keys(last_table, t);
           debug!("get_last_keys {:?}, prev_end: {}", keys, prev_end);
@@ -208,7 +207,7 @@ impl<'a> Parser<'a> {
         }
       }
     }
-    return false;
+    false
   }
 
   pub fn key_has_children_with_values(key: &str, map: &RefCell<&mut HashMap<String, HashValue<'a>>>) -> bool {
@@ -236,7 +235,7 @@ impl<'a> Parser<'a> {
         },
       }
     }
-    return false;
+    false
   }
 
   fn get_keychain_key(keychain: &RefCell<Vec<Key<'a>>>) -> (String, String) {
@@ -244,20 +243,20 @@ impl<'a> Parser<'a> {
     let mut key = String::new();
     let mut parent_key = String::new();
     for i in 0..len {
-      match &keychain.borrow()[i] {
-        &Key::Str(ref str_str) => {
-          if key.len() > 0 {
+      match keychain.borrow()[i] {
+        Key::Str(ref str_str) => {
+          if !key.is_empty() {
             key.push('.');
           }
           key.push_str(str_str)
         },
-        &Key::Index(ref i) => key.push_str(&format!("[{}]", i.get())),
+        Key::Index(ref i) => key.push_str(&format!("[{}]", i.get())),
       }
       if len > 1 && i == len - 2 {
         parent_key = key.clone();
       }
     }
-    return (key, parent_key);
+    (key, parent_key)
   }
 
   pub fn get_full_key(map: &RefCell<&mut HashMap<String, HashValue<'a>>>,
@@ -269,18 +268,18 @@ impl<'a> Parser<'a> {
     debug!("array_key: {}, chain_key: {}, parent_chain_key: {}", array_key, chain_key, parent_chain_key);
     let mut full_key = String::new();
     let mut parent_key = String::new();
-    if array_key.len() > 0 {
+    if !array_key.is_empty() {
       full_key.push_str(&array_key);
-      full_key.push_str(".");
+      full_key.push('.');
       parent_key.push_str(&array_key);
-      if parent_chain_key.len() > 0 {
-        parent_key.push_str(".");
+      if !parent_chain_key.is_empty() {
+        parent_key.push('.');
       }
     }
     full_key.push_str(&chain_key);
     parent_key.push_str(&parent_chain_key);
     debug!("valid: {}, full_key: {}, parent_key: {}", valid, full_key, parent_key);
-    return (valid, full_key, parent_key);
+    (valid, full_key, parent_key)
   }
 
   pub fn insert_keyval_into_map(&mut self, val: Rc<RefCell<TOMLValue<'a>>>) {
@@ -291,23 +290,23 @@ impl<'a> Parser<'a> {
     let mut setvalue = false;
     let full_key: String;
     let mut parent_key: String;
-    match &self.last_table {
+    match self.last_table {
       // If the last table is None
       //  If the key exists
       //    If the value is empty insert the value
       //    If the value in non-empty add the key/val to the error list
       //  If the key doesn't exist, insert it
-      &None => {
+      None => {
         let tuple = Parser::get_keychain_key(&self.keychain);
         full_key = tuple.0;
         parent_key = tuple.1;
-        if parent_key == "" {
+        if parent_key.is_empty() {
           parent_key.push_str("$Root$");
         }
         let map_borrow = map.borrow();
         let hv_opt = map_borrow.get(&full_key);
         if let Some(hv) = hv_opt {
-          if let Some(_) = hv.value {
+          if hv.value.is_some() {
             error = true;
           } else {
             setvalue = true;
@@ -322,7 +321,7 @@ impl<'a> Parser<'a> {
       //    If the value is non-empty add the key/val pair to the error list
       //    If the key is for an ArrayOfTables add the key/val to the error list
       //  If the key doesn't exist add the key/value pair to the hash table
-      &Some(ref ttype) => {
+      Some(ref ttype) => {
         match **ttype {
           TableType::Standard(_) => {
             self.last_array_tables.borrow_mut().push(ttype.clone());
@@ -334,7 +333,7 @@ impl<'a> Parser<'a> {
             let map_borrow = map.borrow();
             let hv_opt = map_borrow.get(&full_key);
             if let Some(hv) = hv_opt {
-              if let Some(_) = hv.value {
+              if hv.value.is_some() {
                 error = true;
               } else {
                 setvalue = true;
@@ -351,7 +350,7 @@ impl<'a> Parser<'a> {
             let map_borrow = map.borrow();
             let hv_opt = map_borrow.get(&full_key);
             if let Some(hv) = hv_opt {
-              if let Some(_) = hv.value {
+              if hv.value.is_some() {
                 debug!("{} hash value exists in table.", full_key);
                 error = true;
               } else {
@@ -374,7 +373,7 @@ impl<'a> Parser<'a> {
       if setvalue {
         debug!("Set existing hash value. full_key: {}, parent_key: {}, val: {}", full_key, parent_key, *(*val).borrow());
         let mut borrow = map.borrow_mut();
-        let entry = borrow.entry(full_key.clone());
+        let entry = borrow.entry(full_key);
         match entry {
           Entry::Occupied(mut o) => {
             debug!("Children: {:?}", &o.get_mut().subkeys);
@@ -385,21 +384,21 @@ impl<'a> Parser<'a> {
       } else if insert {
         debug!("Insert full_key: {}, parent_key: {}, val: {}", full_key, parent_key, *(*val).borrow());
         match *val.borrow() {
-          TOMLValue::InlineTable(_) => map.borrow_mut().insert(full_key.clone(), HashValue::new_keys(val.clone())),
-          _                     => map.borrow_mut().insert(full_key.clone(), HashValue::new_count(val.clone())),
+          TOMLValue::InlineTable(_) => map.borrow_mut().insert(full_key, HashValue::new_keys(val.clone())),
+          _                     => map.borrow_mut().insert(full_key, HashValue::new_count(val.clone())),
         };
       }
 
       // in either case update the parent and possibly grandparent
       let mut borrow = map.borrow_mut();
       {
-        let entry = borrow.entry(parent_key.clone());
+        let entry = borrow.entry(parent_key);
         match entry {
           Entry::Occupied(mut o) => {
             debug!("Children: {:?}", &o.get_mut().subkeys);
-            match &o.get_mut().subkeys {
-              &Children::Count(ref c) => { debug!("parent inc to {}", c.get() + 1); c.set(c.get() + 1) },
-              &Children::Keys(ref vec_rf) => {
+            match o.get_mut().subkeys {
+              Children::Count(ref c) => { debug!("parent inc to {}", c.get() + 1); c.set(c.get() + 1) },
+              Children::Keys(ref vec_rf) => {
                 if let Key::Str(ref s) = self.keychain.borrow()[self.keychain.borrow().len() - 1] {
                   Parser::insert(vec_rf,s.clone().into_owned());
                 }
@@ -605,8 +604,7 @@ impl<'a> Parser<'a> {
      date: call_m!(self.date)             ~
      time: complete!(call_m!(self.time))?  ,
         ||{
-          let res = DateTime::new(date, time);
-          res
+          DateTime::new(date, time)
         }
     )
   );
@@ -663,9 +661,7 @@ impl<'a> Parser<'a> {
           }
           self.errors.borrow_mut().push(err);
         } else {
-          match *res.val.borrow() {
-            _ => self.insert_keyval_into_map(res.val.clone()),
-          }
+          self.insert_keyval_into_map(res.val.clone());
         }
         self.keychain.borrow_mut().pop();
         res
@@ -677,10 +673,10 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test {
   use nom::IResult::Done;
-  use internals::ast::structs::{WSSep, Array, ArrayValue, KeyVal, InlineTable, TableKeyVal, TOMLValue,
+  use crate::internals::ast::structs::{WSSep, Array, ArrayValue, KeyVal, InlineTable, TableKeyVal, TOMLValue,
                                 CommentOrNewLines};
-  use types::{DateTime, Time, Date, TimeOffsetAmount, TimeOffset, StrType};
-  use internals::parser::Parser;
+  use crate::types::{DateTime, Time, Date, TimeOffsetAmount, TimeOffset, StrType};
+  use crate::internals::parser::Parser;
   use std::rc::Rc;
   use std::cell::RefCell;
 

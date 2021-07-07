@@ -74,6 +74,9 @@
 //! Documentation and examples for specific types, enumeration values, and functions can be found in the `TOMLParser`
 //! docs and the `types` module docs.
 
+#![allow(clippy::manual_strip)]
+#![allow(clippy::too_many_arguments)]
+
 #[macro_use]
 extern crate nom;
 extern crate regex;
@@ -84,8 +87,8 @@ pub mod types;
 
 use std::fmt;
 use std::fmt::Display;
-use types::{ParseResult, Value, Children};
-use internals::parser::Parser;
+use crate::types::{ParseResult, Value, Children};
+use crate::internals::parser::Parser;
 
 /// A parser, manipulator, and outputter of TOML documents.
 pub struct TOMLParser<'a> {
@@ -212,6 +215,12 @@ impl<'a> TOMLParser<'a> {
   /// ```
   pub fn get_children<S>(self: &TOMLParser<'a>, key: S) -> Option<&Children> where S: Into<String> {
     self.parser.get_children(key)
+  }
+}
+
+impl<'a> Default for TOMLParser<'a> {
+  fn default() -> Self {
+    Self::new()
   }
 }
 

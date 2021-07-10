@@ -21,13 +21,12 @@ impl<'a> Key<'a> {
   }
 }
 
-#[inline(always)]
 fn is_keychar(chr: char) -> bool {
-  let uchr = chr as u32;
-  (0x41..=0x5A).contains(&uchr) || // A-Z
-  (0x61..=0x7A).contains(&uchr) || // a-z
-  (0x30..=0x39).contains(&uchr) || // 0-9
-  uchr == 0x2D || uchr == 0x5f    // "-", "_"
+  let ucharacter = chr as u32;
+  (0x41..=0x5A).contains(&ucharacter) || // A-Z
+  (0x61..=0x7A).contains(&ucharacter) || // a-z
+  (0x30..=0x39).contains(&ucharacter) || // 0-9
+  ucharacter == 0x2D || ucharacter == 0x5f    // "-", "_"
 }
 
 named!(full_line<&str, &str>, re_find!("^(.*?)(\n|(\r\n))"));
@@ -128,17 +127,14 @@ impl<'a> Parser<'a> {
           let hash_value_opt = map_borrow.get(&full_key);
           if let Some(hash_value) = hash_value_opt {
             if let Some(ref value) = hash_value.value {
-              match *value.borrow() {
-                TOMLValue::Table => {
-                  if let Children::Keys(_) = hash_value.subkeys {
-                    debug!("Array Key \"{}\" conflicts with table key.", full_key);
-                    valid = false;
-                  }
-                },
-                _ => {
-                  debug!("/== Key \"{}\" has a value.", full_key);
+              if let TOMLValue::Table = *value.borrow() {
+                if let Children::Keys(_) = hash_value.subkeys {
+                  debug!("Array Key \"{}\" conflicts with table key.", full_key);
                   valid = false;
-                },
+                }
+              } else {
+                debug!("/== Key \"{}\" has a value.", full_key);
+                valid = false;
               }
             }
             if hash_value.value.is_some() {
@@ -198,12 +194,9 @@ impl<'a> Parser<'a> {
     let hash_value_opt = map_borrow.get(key);
     if let Some(hash_value) = hash_value_opt {
       if let Some(ref value) = hash_value.value {
-        match *value.borrow() {
-          TOMLValue::Table => return false,
-          _ => {
-            debug!("/== Key \"{}\" has a value.", key);
-            return true;
-          },
+        return if let TOMLValue::Table = *value.borrow() { false } else {
+          debug!("/== Key \"{}\" has a value.", key);
+          true
         }
       }
     }

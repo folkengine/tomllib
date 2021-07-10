@@ -484,6 +484,7 @@ impl<'a> Value<'a> {
   /// # Errors
   ///
   /// Will return `TOMLError` is result doesn't validate.
+  ///
   #[allow(clippy::many_single_char_names)]
   pub fn datetime_from_int(year: usize, month: usize, day: usize, hour: usize, minute: usize, second: usize) -> Result<Value<'a>, TOMLError> {
     let y = format!("{:0>4}", year);
